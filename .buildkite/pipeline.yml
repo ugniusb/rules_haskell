@@ -1,5 +1,6 @@
 steps:
   - command: |
+      pwd
       . /var/lib/buildkite-agent/.nix-profile/etc/profile.d/nix.sh
       echo "build:ci --host_platform=@rules_haskell//haskell/platforms:linux_x86_64_nixpkgs" > .bazelrc.local
       nix-shell --arg docTools false --pure --run \
@@ -13,6 +14,7 @@ steps:
     label: "Run tests (Nixpkgs)"
     timeout: 30
   - command: |
+      pwd
       echo "common:ci --build_tag_filters -requires_lz4,-requires_proto,-requires_zlib,-requires_doctest,-requires_c2hs,-requires_threaded_rts,-dont_test_with_bindist" > .bazelrc.local
       # XXX: See .bazelrc [backward compatible options] for the the rational behind this flag
       echo "build --incompatible_use_python_toolchains=false" >> .bazelrc.local
