@@ -19,7 +19,17 @@ package(default_visibility = ["//visibility:public"])
 
 filegroup(
     name = "bin",
-    srcs = glob(["bin/*"]),
+    srcs = [
+        "bin/ghc",
+        "bin/ghci",
+        "bin/ghc-pkg",
+        "bin/haddock",
+        "bin/hp2ps",
+        "bin/hpc",
+        "bin/hsc2hs",
+        "bin/runghc",
+        "bin/runhaskell",
+    ],
 )
 
 # Expose embedded MinGW toolchain when on Windows.
