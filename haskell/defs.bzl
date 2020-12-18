@@ -16,6 +16,7 @@ load(
 load(
     ":repl.bzl",
     _haskell_repl = "haskell_repl",
+    _haskell_repl_test = "haskell_repl_test",
     _haskell_repl_aspect = "haskell_repl_aspect",
 )
 load(":private/cc_libraries.bzl", "haskell_cc_libraries_aspect")
@@ -298,9 +299,8 @@ def haskell_binary(
     )
 
     repl_kwargs = {
-        attr: kwargs[attr]
-        for attr in ["testonly", "tags"]
-        if attr in kwargs
+        "testonly": kwargs.get("testonly", False),
+        "tags": kwargs.get("tags", ["manual"]),
     }
     native.alias(
         # XXX Temporary backwards compatibility hack. Remove eventually.
@@ -403,25 +403,23 @@ def haskell_test(
         **kwargs
     )
 
+    testonly = kwargs.get("testonly", True)
     repl_kwargs = {
-        attr: kwargs[attr]
-        for attr in ["tags"]
-        if attr in kwargs
+        "testonly": testonly,
+        "tags": kwargs.get("tags", ["manual"]),
     }
     native.alias(
         # XXX Temporary backwards compatibility hack. Remove eventually.
         # See https://github.com/tweag/rules_haskell/pull/460.
         name = "%s-repl" % name,
         actual = "%s@repl" % name,
-        testonly = kwargs.get("testonly", True),
         **repl_kwargs
     )
-    haskell_repl(
+    haskell_repl_test(
         name = "%s@repl" % name,
         deps = [name],
         experimental_from_source = [":%s" % name],
         repl_ghci_args = [],
-        testonly = kwargs.get("testonly", True),
         **repl_kwargs
     )
 
@@ -602,6 +600,8 @@ haskell_doc_aspect = _haskell_doc_aspect
 haskell_register_toolchains = _haskell_register_toolchains
 
 haskell_repl = _haskell_repl
+
+haskell_repl_test = _haskell_repl_test
 
 haskell_repl_aspect = _haskell_repl_aspect
 

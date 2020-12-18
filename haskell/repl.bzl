@@ -544,123 +544,135 @@ def _haskell_repl_impl(ctx):
     return _create_repl(hs, posix, ctx, repl_info, ctx.outputs.repl) + \
            _create_hie_bios(hs, posix, ctx, repl_info)
 
-haskell_repl = rule(
-    implementation = _haskell_repl_impl,
-    attrs = {
-        "_ghci_repl_script": attr.label(
-            allow_single_file = True,
-            default = Label("@rules_haskell//haskell:assets/ghci_script"),
-        ),
-        "_ghci_repl_wrapper": attr.label(
-            allow_single_file = True,
-            default = Label("@rules_haskell//haskell:private/ghci_repl_wrapper.sh"),
-        ),
-        "deps": attr.label_list(
-            aspects = [
-                haskell_cc_libraries_aspect,
-                haskell_repl_aspect,
-            ],
-            doc = "List of Haskell targets to load into the REPL",
-        ),
-        "data": attr.label_list(
-            allow_files = True,
-            doc = "See [Bazel documentation](https://docs.bazel.build/versions/master/be/common-definitions.html#common.data). Only available when `collect_data = True`.",
-        ),
-        "experimental_from_source": attr.string_list(
-            doc = """White-list of targets to load by source.
+def _mk_haskell_repl(**kwargs):
+    is_test = kwargs.get("test", False)
+    test_suffix = "_test" if is_test else ""
+    executable = kwargs.pop("executable", not is_test)
 
-            Wild-card targets such as //... or //:all are allowed.
+    return rule(
+        implementation = _haskell_repl_impl,
+        attrs = {
+            "_ghci_repl_script": attr.label(
+                allow_single_file = True,
+                default = Label("@rules_haskell//haskell:assets/ghci_script"),
+            ),
+            "_ghci_repl_wrapper": attr.label(
+                allow_single_file = True,
+                default = Label("@rules_haskell//haskell:private/ghci_repl_wrapper.sh"),
+            ),
+            "deps": attr.label_list(
+                aspects = [
+                    haskell_cc_libraries_aspect,
+                    haskell_repl_aspect,
+                ],
+                doc = "List of Haskell targets to load into the REPL",
+            ),
+            "data": attr.label_list(
+                allow_files = True,
+                doc = "See [Bazel documentation](https://docs.bazel.build/versions/master/be/common-definitions.html#common.data). Only available when `collect_data = True`.",
+            ),
+            "experimental_from_source": attr.string_list(
+                doc = """White-list of targets to load by source.
 
-            The black-list takes precedence over the white-list.
+                Wild-card targets such as //... or //:all are allowed.
 
-            Note, this attribute will change depending on the outcome of
-            https://github.com/bazelbuild/bazel/issues/7763.
-            """,
-            default = ["//..."],
-        ),
-        "experimental_from_binary": attr.string_list(
-            doc = """Black-list of targets to not load by source but as packages.
+                The black-list takes precedence over the white-list.
 
-            Wild-card targets such as //... or //:all are allowed.
+                Note, this attribute will change depending on the outcome of
+                https://github.com/bazelbuild/bazel/issues/7763.
+                """,
+                default = ["//..."],
+            ),
+            "experimental_from_binary": attr.string_list(
+                doc = """Black-list of targets to not load by source but as packages.
 
-            The black-list takes precedence over the white-list.
+                Wild-card targets such as //... or //:all are allowed.
 
-            Note, this attribute will change depending on the outcome of
-            https://github.com/bazelbuild/bazel/issues/7763.
-            """,
-            default = [],
-        ),
-        "repl_ghci_args": attr.string_list(
-            doc = "Arbitrary extra arguments to pass to GHCi. This extends `compiler_flags` and `repl_ghci_args` from the toolchain. Subject to Make variable substitution.",
-            default = [],
-        ),
-        "repl_ghci_commands": attr.string_list(
-            doc = "Arbitrary extra commands to execute in GHCi.",
-            default = [],
-        ),
-        "collect_data": attr.bool(
-            doc = "Whether to collect the data runfiles from the dependencies in srcs, data and deps attributes.",
-            default = True,
-        ),
-    },
-    executable = True,
-    outputs = {
-        "repl": "%{name}@repl",
-    },
-    toolchains = [
-        "@rules_haskell//haskell:toolchain",
-        "@rules_sh//sh/posix:toolchain_type",
-    ],
-    doc = """\
-Build a REPL for multiple targets.
+                The black-list takes precedence over the white-list.
 
-### Examples
+                Note, this attribute will change depending on the outcome of
+                https://github.com/bazelbuild/bazel/issues/7763.
+                """,
+                default = [],
+            ),
+            "repl_ghci_args": attr.string_list(
+                doc = "Arbitrary extra arguments to pass to GHCi. This extends `compiler_flags` and `repl_ghci_args` from the toolchain. Subject to Make variable substitution.",
+                default = [],
+            ),
+            "repl_ghci_commands": attr.string_list(
+                doc = "Arbitrary extra commands to execute in GHCi.",
+                default = [],
+            ),
+            "collect_data": attr.bool(
+                doc = "Whether to collect the data runfiles from the dependencies in srcs, data and deps attributes.",
+                default = True,
+            ),
+        },
+        executable = executable,
+        outputs = {
+            "repl": "%{name}@repl",
+        },
+        toolchains = [
+            "@rules_haskell//haskell:toolchain",
+            "@rules_sh//sh/posix:toolchain_type",
+        ],
+        doc = """\
+    Build a REPL for multiple targets.
 
-  ```bzl
-  haskell_repl(
-      name = "repl",
-      deps = [
-          "//lib:some_lib",
-          "//exe:some_exe",
-      ],
-      experimental_from_source = [
-          "//lib/...",
-          "//exe/...",
-          "//common/...",
-      ],
-      experimental_from_binary = [
-          "//lib/vendored/...",
-      ],
-  )
-  ```
+    ### Examples
 
-  Collects all transitive Haskell dependencies from `deps`. Those that match
-  `experimental_from_binary` or are defined in an external workspace will be
-  loaded as binary packages. Those that match `experimental_from_source` and
-  are defined in the local workspace will be loaded by source.
+      ```bzl
+      haskell_repl{test_suffix}(
+          name = "repl",
+          deps = [
+              "//lib:some_lib",
+              "//exe:some_exe",
+          ],
+          experimental_from_source = [
+              "//lib/...",
+              "//exe/...",
+              "//common/...",
+          ],
+          experimental_from_binary = [
+              "//lib/vendored/...",
+          ],
+      )
+      ```
 
-  You can call the REPL like this:
+      Collects all transitive Haskell dependencies from `deps`. Those that match
+      `experimental_from_binary` or are defined in an external workspace will be
+      loaded as binary packages. Those that match `experimental_from_source` and
+      are defined in the local workspace will be loaded by source.
 
-```
-$ bazel run //:repl
-```
+      You can call the REPL like this:
 
-### IDE Support (Experimental)
+    ```
+    $ bazel run //:repl
+    ```
 
-`haskell_repl` targets provide the `hie_bios` output group to optionally
-generate GHCi flags for [hie-bios](https://github.com/mpickering/hie-bios)'s
-`bios` cradle. You can use this for IDE support with
-[ghcide](https://github.com/digital-asset/ghcide).
+    ### IDE Support (Experimental)
 
-Given a `haskell_repl` target `//:repl` an example `.hie-bios` script could
-look as follows. Please refer to the `hie-bios` documentation for further
-information.
+    `haskell_repl{test_suffix}` targets provide the `hie_bios` output group to
+    optionally generate GHCi flags for
+    [hie-bios](https://github.com/mpickering/hie-bios)'s `bios` cradle. You can
+    use this for IDE support with
+    [ghcide](https://github.com/digital-asset/ghcide).
 
-  ```shell
-  #!/usr/bin/env bash
-  set -euo pipefail
-  bazel build //:repl --output_groups=hie_bios
-  cat bazel-bin/repl@hie-bios >"$HIE_BIOS_OUTPUT"
-  ```
-""",
-)
+    Given a `haskell_repl{test_suffix}` target `//:repl` an example `.hie-bios`
+    script could look as follows. Please refer to the `hie-bios` documentation
+    for further information.
+
+      ```shell
+      #!/usr/bin/env bash
+      set -euo pipefail
+      bazel build //:repl --output_groups=hie_bios
+      cat bazel-bin/repl@hie-bios >"$HIE_BIOS_OUTPUT"
+      ```
+    """.format(test_suffix = test_suffix),
+        **kwargs
+    )
+
+
+haskell_repl = _mk_haskell_repl(test = False)
+
+haskell_repl_test = _mk_haskell_repl(test = True)
